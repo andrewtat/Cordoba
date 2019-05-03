@@ -87,15 +87,11 @@ export default class GraphAPI extends Component {
     render() {
         if (this.state.instagramUser) {
             return (
-                <div>
-                    <h1>{this.state.instagramUser.username}</h1>
-                </div>
+                <User user={this.state.instagramUser} />
             );
         } else {
             return (
-                <div>
-                    <p>No user logged in</p>
-                </div>
+                <div><p>No user logged in</p></div>
             );
         }
     }
