@@ -19,10 +19,70 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>React App</title>
+    <title>Cordoba</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
+    
+    <script>
+      // This is called with the results from from FB.getLoginStatus().
+      function statusChangeCallback(response) {
+        // The response object is returned with a status field that lets the
+        // app know the current login status of the person.
+        // Full docs on the response object can be found in the documentation
+        // for FB.getLoginStatus().
+        if (response.status === 'connected') {
+          // Logged into your app and Facebook.
+          document.cookie = 'access_token=' + response.authResponse.accessToken;
+
+          var authorizedEvent = new Event("FBAuthorized");
+          document.dispatchEvent(authorizedEvent);
+        } else {
+          // The person is not logged into your app or we are unable to tell.
+          console.log("Not logged into Facebook.");
+        }
+      }
+    
+      // This function is called when someone finishes with the Login
+      // Button.  See the onlogin handler attached to it in the sample
+      // code below.
+      function checkLoginState() {
+        FB.getLoginStatus(function(response) {
+          statusChangeCallback(response);
+        });
+      }
+    
+      window.fbAsyncInit = function() {
+        FB.init({
+          appId      : '293770601551708',
+          cookie     : true,  // enable cookies to allow the server to access the session
+          xfbml      : true,  // parse social plugins on this page
+          version    : 'v3.3' // The Graph API version to use for the call
+        });
+
+        // Broadcast an event when FB object is ready
+        var fbInitEvent = new Event('FBObjectReady');
+        document.dispatchEvent(fbInitEvent);
+    
+        FB.getLoginStatus(function(response) {
+          statusChangeCallback(response);
+        });
+    
+      };
+    
+      // Load the SDK asynchronously
+      (function(d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        js = d.createElement(s); js.id = id;
+        js.src = "https://connect.facebook.net/en_US/sdk.js";
+        fjs.parentNode.insertBefore(js, fjs);
+      }(document, 'script', 'facebook-jssdk'));
+
+    </script>
+
+    <div class="fb-login-button" data-width="" data-size="large" data-button-type="continue_with" data-auto-logout-link="true" data-use-continue-as="true"></div>
+
     <div id="root"></div>
     <!--
       This HTML file is a template.
