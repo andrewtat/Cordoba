@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 export default class GoogleCV extends Component {
 
     GoogleCV = {
-        apiKey: 'AIzaSyD6UNdysR4q3Ux4mxQ1TOIBhwWpeI9K06E',
+        apiKey: '',
         endpoint: 'https://vision.googleapis.com/v1/images:annotate?key=',
         imageCap: 10
     }
