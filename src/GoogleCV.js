@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 export default class GoogleCV extends Component {
 
     GoogleCV = {
-        apiKey: 'AIzaSyBAMmZhH7zHjQCfVc2Kxd_cUCWJI80n7AU',
+        apiKey: process.env.REACT_APP_GOOGLE_CLOUD_API_KEY,
         endpoint: 'https://vision.googleapis.com/v1/images:annotate?key=',
         imageCap: 10
     }
@@ -96,7 +96,7 @@ export default class GoogleCV extends Component {
         var count = 0;
         var index = 0;
         while(count < this.GoogleCV.imageCap && count < media.length && index < media.length) {
-            if (media[index].media_type == "IMAGE") { // Filters out images
+            if (media[index].media_type == "IMAGE") { // Keeps images, filters out videos
                 const imageURL = media[index].media_url;
                 const image = await this.buildGoogleCVRequestImage(imageURL);
                 requests.push(image);
