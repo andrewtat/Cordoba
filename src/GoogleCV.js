@@ -12,6 +12,7 @@ export default class GoogleCV extends Component {
         super(props);
         this.state = {
             media: this.props.media,
+            responses: null,
             emotion: null,
             subjects: [],
             colors: []
@@ -91,11 +92,17 @@ export default class GoogleCV extends Component {
     }
 
     async buildGoogleCVRequests(media) {
-        const requests = [];
-        for (let i = 0; i < (media.length > this.GoogleCV.imageCap ? this.GoogleCV.imageCap : media.length); i++) {
-            const imageURL = media[i].media_url;
-            const image = await this.buildGoogleCVRequestImage(imageURL);
-            requests.push(image);
+        var requests = [];
+        var count = 0;
+        var index = 0;
+        while(count < this.GoogleCV.imageCap && count < media.length && index < media.length) {
+            if (media[index].media_type == "IMAGE") { // Filters out images
+                const imageURL = media[index].media_url;
+                const image = await this.buildGoogleCVRequestImage(imageURL);
+                requests.push(image);
+                count++;
+            } 
+            index++;
         }
         return requests;
     }
@@ -119,8 +126,13 @@ export default class GoogleCV extends Component {
     }
 
     async componentDidMount() {
-        var GoogleCVResults = await this.postGoogleCVRequest();
-        console.log(GoogleCVResults);
+        if (this.state.responses === null) { // Check if need to POST to Google CV to get responses
+            var GoogleCVResults = await this.postGoogleCVRequest();
+            this.setState({
+                responses: GoogleCVResults
+            });
+            console.log(this.state.responses);
+        } 
     }
 
     componentWillUnmount() {
