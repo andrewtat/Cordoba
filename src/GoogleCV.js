@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 export default class GoogleCV extends Component {
 
     GoogleCV = {
-        apiKey: '',
+        apiKey: 'AIzaSyBAMmZhH7zHjQCfVc2Kxd_cUCWJI80n7AU',
         endpoint: 'https://vision.googleapis.com/v1/images:annotate?key=',
         imageCap: 10
     }
@@ -18,12 +18,61 @@ export default class GoogleCV extends Component {
         };
     }
 
-    buildGoogleCVRequestImage(imageURL) {
+    parseBase64FromDataURL(dataURL) {
+        const beginningOfBase64String = 23;
+        if (dataURL) {
+            return dataURL.substring(beginningOfBase64String);
+        } else { // dataURL is undefined
+            console.log("Nonexistent dataURL variable.");
+        }
+    }
+
+    convertBlobToDataURL(imageBlob) {
+        let dataURL;
+        var reader = new FileReader();
+        reader.onload = () => {
+            dataURL = reader.result;
+        };
+        reader.readAsDataURL(imageBlob);
+        return dataURL;
+    }
+
+    convertImageBytesToBase64(imageBuffer) {
+        var binary = '';
+        var imageBytes = new Uint8Array(imageBuffer);
+        var imageLength = imageBytes.byteLength;
+        for ( var i = 0; i < imageLength; i++) {
+            binary += String.fromCharCode(imageBytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
+    async getImageBuffer(imageURL) {
+        return await fetch(imageURL)
+            .then(response => {
+                if (response.ok) {
+                    return response.arrayBuffer();
+                } else {
+                    throw new Error('Network response was not ok.');
+                }                
+            })
+            .catch(error => {
+                console.log('There has been a problem with your fetch operation: ', error.message);
+            });
+    }
+
+    getBase64Image(imageBuffer) {
+        return this.convertImageBytesToBase64(imageBuffer);
+    }
+
+    async buildGoogleCVRequestImage(imageURL) {
+        var imageBuffer = await this.getImageBuffer(imageURL); // Get image from Facebook in image buffer format
+        var base64Image = this.getBase64Image(imageBuffer); // Convert image buffer to base64
+
+        // Construct image JSON using base64 image
         const image = {
             image: {
-                source: {
-                    imageUri: imageURL
-                }
+                content: base64Image
             },
             features: [
                 {
@@ -41,33 +90,37 @@ export default class GoogleCV extends Component {
         return image;
     }
 
-    buildGoogleCVRequests(media) {
+    async buildGoogleCVRequests(media) {
         const requests = [];
         for (let i = 0; i < (media.length > this.GoogleCV.imageCap ? this.GoogleCV.imageCap : media.length); i++) {
             const imageURL = media[i].media_url;
-            requests.push(this.buildGoogleCVRequestImage(imageURL));
+            const image = await this.buildGoogleCVRequestImage(imageURL);
+            requests.push(image);
         }
         return requests;
     }
 
-    buildGoogleCVRequestBody(media) {
+    async buildGoogleCVRequestBody(media) {
+        var requests = await this.buildGoogleCVRequests(media);
         const requestsList = {
-            requests: this.buildGoogleCVRequests(media)
+            requests: requests
         };
         return requestsList;
     }
 
-    postGoogleCVRequest() {
-        const request = new Request(this.GoogleCV.endpoint + this.GoogleCV.apiKey, {method: 'POST', body: JSON.stringify(this.buildGoogleCVRequestBody(this.props.media))});
-        fetch(request)
+    async postGoogleCVRequest() {
+        var requestsList = await this.buildGoogleCVRequestBody(this.props.media);
+        const request = new Request(this.GoogleCV.endpoint + this.GoogleCV.apiKey, {method: 'POST', body: JSON.stringify(requestsList)});
+        return await fetch(request)
             .then(response => response.json())
             .then(results => {
                 return results;
             });
     }
 
-    componentDidMount() {
-        this.postGoogleCVRequest();
+    async componentDidMount() {
+        var GoogleCVResults = await this.postGoogleCVRequest();
+        console.log(GoogleCVResults);
     }
 
     componentWillUnmount() {
