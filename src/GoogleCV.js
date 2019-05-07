@@ -2,137 +2,90 @@ import React, { Component } from 'react';
 
 export default class GoogleCV extends Component {
 
-    GoogleCV = {
-        apiKey: process.env.REACT_APP_GOOGLE_CLOUD_API_KEY,
-        endpoint: 'https://vision.googleapis.com/v1/images:annotate?key=',
-        imageCap: 10
-    }
-
     constructor(props) {
         super(props);
         this.state = {
             media: this.props.media,
             responses: null,
-            emotion: null,
-            subjects: [],
-            colors: []
-        };
-    }
-
-    parseBase64FromDataURL(dataURL) {
-        const beginningOfBase64String = 23;
-        if (dataURL) {
-            return dataURL.substring(beginningOfBase64String);
-        } else { // dataURL is undefined
-            console.log("Nonexistent dataURL variable.");
-        }
-    }
-
-    convertBlobToDataURL(imageBlob) {
-        let dataURL;
-        var reader = new FileReader();
-        reader.onload = () => {
-            dataURL = reader.result;
-        };
-        reader.readAsDataURL(imageBlob);
-        return dataURL;
-    }
-
-    convertImageBytesToBase64(imageBuffer) {
-        var binary = '';
-        var imageBytes = new Uint8Array(imageBuffer);
-        var imageLength = imageBytes.byteLength;
-        for ( var i = 0; i < imageLength; i++) {
-            binary += String.fromCharCode(imageBytes[i]);
-        }
-        return window.btoa(binary);
-    }
-
-    async getImageBuffer(imageURL) {
-        return await fetch(imageURL)
-            .then(response => {
-                if (response.ok) {
-                    return response.arrayBuffer();
-                } else {
-                    throw new Error('Network response was not ok.');
-                }                
-            })
-            .catch(error => {
-                console.log('There has been a problem with your fetch operation: ', error.message);
-            });
-    }
-
-    getBase64Image(imageBuffer) {
-        return this.convertImageBytesToBase64(imageBuffer);
-    }
-
-    async buildGoogleCVRequestImage(imageURL) {
-        var imageBuffer = await this.getImageBuffer(imageURL); // Get image from Facebook in image buffer format
-        var base64Image = this.getBase64Image(imageBuffer); // Convert image buffer to base64
-
-        // Construct image JSON using base64 image
-        const image = {
-            image: {
-                content: base64Image
+            emotion: {
+                anger: 0,
+                joy: 0,
+                sorrow: 0,
+                surprise: 0
             },
-            features: [
-                {
-                    type: "LABEL_DETECTION",
-                    maxResults: 3
-                }, 
-                {
-                    type: "IMAGE_PROPERTIES"
-                },
-                {
-                    type: "FACE_DETECTION"
-                }
-            ]
+            subjects: [],
+            colors: {
+                red: null,
+                green: null,
+                blue: null
+            }
         };
-        return image;
     }
 
-    async buildGoogleCVRequests(media) {
-        var requests = [];
-        var count = 0;
+    findMostDominantColor(colors) {
+        var mostDominantColor = colors[0];
+        for(var i = 1; i < colors.length; i++) {
+            if (colors[i].pixelFraction > mostDominantColor.pixelFraction) {
+                mostDominantColor = colors[i];
+            }
+        }
+        return mostDominantColor;
+    }
+
+    addToEmotionsCount(faceAnnotations) {
+        var scores = {
+            POSSIBLE: 1,
+            LIKELY: 2,
+            VERY_LIKELY: 3
+        };
+        if (faceAnnotations.angerLikelihood === "POSSIBLE") {
+
+        }
+    }
+
+    processImageAnalysis(results) {
+        if (results.faceAnnotations) {
+            this.addToEmotionsCount(results.faceAnnotations[0]);
+        }
+
+        var mostDominantColor = this.findMostDominantColor(results.imagePropertiesAnnotation.dominantColors.colors);
+
+        var imageStats = {
+            mostDominantColor: mostDominantColor,
+
+        };
+    }
+
+    async analyzeImage(imageURL) {
+        var imageAnalysisURL = new URL('http://localhost:5000/analyzeimage');
+        const imageAnalysisParameters = {
+            media_url: imageURL
+        };
+        imageAnalysisURL.search = new URLSearchParams(imageAnalysisParameters);
+
+        const request = new Request(imageAnalysisURL, {method: 'GET'});
+        var result = await fetch(request).then(response => response.json());
+        return result;
+    }
+
+    async analyzeImages() {
+        const imageCap = 4;
         var index = 0;
-        while(count < this.GoogleCV.imageCap && count < media.length && index < media.length) {
-            if (media[index].media_type == "IMAGE") { // Keeps images, filters out videos
-                const imageURL = media[index].media_url;
-                const image = await this.buildGoogleCVRequestImage(imageURL);
-                requests.push(image);
+        var count = 0;
+        while (index < this.state.media.length && count < this.state.media.length && count < imageCap) {
+            if (this.state.media[index].media_type === "IMAGE") {
+                const imageURL = this.state.media[index].media_url;
+                var results = await this.analyzeImage(imageURL);
+                console.log(results.responses[0]);
+
                 count++;
-            } 
+            }
             index++;
         }
-        return requests;
-    }
-
-    async buildGoogleCVRequestBody(media) {
-        var requests = await this.buildGoogleCVRequests(media);
-        const requestsList = {
-            requests: requests
-        };
-        return requestsList;
-    }
-
-    async postGoogleCVRequest() {
-        var requestsList = await this.buildGoogleCVRequestBody(this.props.media);
-        const request = new Request(this.GoogleCV.endpoint + this.GoogleCV.apiKey, {method: 'POST', body: JSON.stringify(requestsList)});
-        return await fetch(request)
-            .then(response => response.json())
-            .then(results => {
-                return results;
-            });
     }
 
     async componentDidMount() {
-        if (this.state.responses === null) { // Check if need to POST to Google CV to get responses
-            var GoogleCVResults = await this.postGoogleCVRequest();
-            this.setState({
-                responses: GoogleCVResults
-            });
-            console.log(this.state.responses);
-        } 
+        this.analyzeImages();
     }
 
     componentWillUnmount() {
@@ -142,7 +95,6 @@ export default class GoogleCV extends Component {
     render() {
         return (
             <div id="googlecv-results">
-                <div id="sanity-check"><img src={this.props.media[0].media_url} height="400" /></div>
                 <div id="emotion-result"></div>
                 <div id="subjects-result"></div>
                 <div id="colors-result"></div>
