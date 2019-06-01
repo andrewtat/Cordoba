@@ -54,31 +54,16 @@ export default class GoogleCV extends Component {
         return Object.keys(emotions).reduce((currentMostCommon, emotion) => emotions[currentMostCommon] > emotions[emotion] ? currentMostCommon : emotion);
     }
 
-    labelsSetContains(uniqueLabels, labelAnnotation) {
-        uniqueLabels.values().forEach(label => {
-            if (label.mid === labelAnnotation.mid || label.description === labelAnnotation.description) {
-                // Keep label with higher topicality
-                if (label.topicality < labelAnnotation.topicality) {
-                    uniqueLabels.delete(label);
-                    uniqueLabels.add(labelAnnotation);
-                }
-                return true;
-            }
-        });
-        return false;
-    }
-
     processLabelAnnotations(labelAnnotations, helpers) {
         for(var i = 0; i < labelAnnotations.length; i++) {
-            // If the current label has been seen, keep the one with the higher topicality. Else, add to unique labels seen
-            if (!this.labelsSetContains(helpers.uniqueLabels, labelAnnotations[i])) {
+            if (!helpers.uniqueLabels.has(labelAnnotations[i])) {
                 helpers.uniqueLabels.add(labelAnnotations[i]);
             }
         }
     }
 
     getNthHighestLabels(labels, n) {
-        const sortedLabels = labels.values().sort((previous, current) => { // TODO: DUNNO IF THIS WILL WORK. NOT SURE OF TYPE FOR SORTEDLABELS
+        const sortedLabels = Array.from(labels).sort((previous, current) => { 
             return (current.topicality > previous.topicality) ? current : previous;
         });
         return sortedLabels.slice(0, n);
@@ -155,15 +140,17 @@ export default class GoogleCV extends Component {
         }
 
         images.forEach(image => {
-            // Process faceAnnotations
-            this.processFaceAnnotation(image.faceAnnotations[0], helpers);
+            // Process faceAnnotations if they exist
+            if (image.analysis.faceAnnotations) {
+                this.processFaceAnnotation(image.analysis.faceAnnotations[0], helpers);
+            }
 
             // Process colors
             const imageColors = image.analysis.imagePropertiesAnnotation.dominantColors.colors;
             helpers.dominantColors.push(this.findMostDominantColor(imageColors));
 
             // Process labelAnnotations
-            this.processLabelAnnotations(image.labelAnnotations, helpers);
+            this.processLabelAnnotations(image.analysis.labelAnnotations, helpers);
         });
 
         var result = {
@@ -196,9 +183,6 @@ export default class GoogleCV extends Component {
     }
 
     async packageImages(imageCap) {
-        // var index = 0;
-        // var images = [];
-
         const endIndex = (imageCap > this.props.media.length) ? this.props.media.length: imageCap;
         
         const images = this.props.media.slice(0, endIndex).map(async post => {
@@ -210,28 +194,11 @@ export default class GoogleCV extends Component {
                         likesCount: post.like_count,
                         timestamp: post.timestamp,
                         imageURL: post.media_url,
-                        analysis: response
+                        analysis: response.responses[0]
                     };
                     return image;
                 });
         });
-
-        // while (index < imageCap && index < this.props.media.length) {
-        //     const imageURL = this.props.media[index].media_url;
-
-        //     // Create JSON object with media metadata and JSON analysis
-        //     var image = {
-        //         instagramID: this.props.media[index].id,
-        //         likesCount: this.props.media[index].like_count,
-        //         timestamp: this.props.media[index].timestamp,
-        //         imageURL: this.props.media[index].media_url,
-        //         analysis: await this.analyzeImage(imageURL)[0]
-        //     };
-
-        //     images.push(image);
-
-        //     index++;
-        // }
         return await Promise.all(images);
     }
 
@@ -248,10 +215,10 @@ export default class GoogleCV extends Component {
         const emotionResultHTML = (<p>Your most common emotion is {result.mostCommonEmotion}.</p>);
 
         // Create color result HTML
-        const colorResultHTML = (<p>Your most common emotion is {result.mostDominantColor}.</p>);
+        const colorResultHTML = (<p>Your most common color is R:{result.mostDominantColor.color.red} G:{result.mostDominantColor.color.green} B:{result.mostDominantColor.color.blue}</p>);
 
         // Create labels result HTML
-        const subjectResultHTML = (<p>Your most common emotion is {result.mostCommonSubjects.toString()}.</p>);
+        const subjectResultHTML = (<p>Your most common subject is {result.mostCommonSubjects[0].description}.</p>);
 
         // Render results
         ReactDOM.render(emotionResultHTML, document.getElementById("emotion-result"));
@@ -260,7 +227,7 @@ export default class GoogleCV extends Component {
     }
 
     async componentDidMount() {
-        const result = this.analyzeImages();
+        const result = await this.analyzeImages();
         this.displayResults(result);
     }
 
