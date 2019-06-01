@@ -19,7 +19,7 @@ export default class GoogleCV extends Component {
         ReactDOM.render(subjectResultHTML, document.getElementById("subjects-result"));
     }
 
-    async componentDidMount() {
+    async analyzeImages() {
         const ingestGoogleCVMediaIngestURL = new URL("http://localhost:5000/instagrammedia");
         const request = new Request(ingestGoogleCVMediaIngestURL, { 
             method: 'POST', 
@@ -29,10 +29,13 @@ export default class GoogleCV extends Component {
             },
             body: JSON.stringify(this.props.media)
         });
-        var analysis = await fetch(request).then(response => {
+        return await fetch(request).then(response => {
             return response.json();
         });
-        this.displayResults(analysis);
+    }
+
+    async componentDidMount() {
+        this.displayResults(await this.analyzeImages());
     }
 
     componentWillUnmount() {
